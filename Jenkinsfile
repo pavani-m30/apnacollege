@@ -13,38 +13,49 @@ pipeline {
 
         stage('Build Image') {
             steps {
-                echo "Building Docker image with python:alpine..."
-                sh 'docker build -t pavanimm/python-app:alpine .'
+                echo "Building Docker image with version tags..."
+                sh '''
+                IMAGE_NAME="pavanimm/python-app"
+                VERSION="v$(date +%Y%m%d%H%M%S)"
+
+                echo "Building image with tag: $VERSION"
+                docker build -t $IMAGE_NAME:$VERSION .
+
+                echo "Also tagging image as latest"
+                docker tag $IMAGE_NAME:$VERSION $IMAGE_NAME:latest
+
+                echo "Saving version tag for later stages"
+                echo $VERSION > version.txt
+                '''
             }
         }
 
         stage('Push Image') {
             steps {
-                echo "Logging in and pushing image to Docker Hub..."
+                echo "Pushing images to Docker Hub..."
                 sh '''
+                IMAGE_NAME="pavanimm/python-app"
+                VERSION=$(cat version.txt)
+
                 echo $DOCKER_HUB_TOKEN | docker login -u pavanimm --password-stdin
-                docker push pavanimm/python-app:alpine
+                docker push $IMAGE_NAME:$VERSION
+                docker push $IMAGE_NAME:latest
                 '''
             }
         }
 
         stage('Deploy Container') {
             steps {
-                echo "Cleaning up old container if exists..."
-                sh 'docker rm -f python-app || true'
-
-                echo "Checking if port 5000 is in use..."
+                echo "Deploying container with latest image..."
                 sh '''
-                CONTAINER_ID=$(docker ps --filter "publish=5000" --format "{{.ID}}")
-                if [ -n "$CONTAINER_ID" ]; then
-                  echo "Stopping container $CONTAINER_ID using port 5000..."
-                  docker stop "$CONTAINER_ID"
-                  docker rm "$CONTAINER_ID"
-                fi
-                '''
+                IMAGE_NAME="pavanimm/python-app"
 
-                echo "Running new container..."
-                sh 'docker run -d --name python-app -p 5000:5000 pavanimm/python-app:alpine'
+                # Remove old container if exists
+                docker rm -f python-app || true
+
+                # Run new container with latest tag
+                docker run -d --name python-app -p 5000:5000 $IMAGE_NAME:latest
+                '''
             }
         }
     }
