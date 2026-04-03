@@ -59,13 +59,11 @@ pipeline {
             steps {
                 echo "Deploying container with latest image..."
                 sh '''
-                # Check if port 5000 is already in use
-                if lsof -i :5000 -sTCP:LISTEN -t >/dev/null; then
-                  echo "Port 5000 is in use. Removing container using it..."
-                  CONTAINER_ID=$(docker ps -q --filter "publish=5000")
-                  if [ -n "$CONTAINER_ID" ]; then
-                    docker rm -f $CONTAINER_ID || true
-                  fi
+                # Find any container using port 5000 and remove it
+                CONTAINER_ID=$(docker ps -q --filter "publish=5000")
+                if [ -n "$CONTAINER_ID" ]; then
+                  echo "Removing container bound to port 5000: $CONTAINER_ID"
+                  docker rm -f $CONTAINER_ID || true
                 fi
 
                 # Remove old container named python-app if it exists
