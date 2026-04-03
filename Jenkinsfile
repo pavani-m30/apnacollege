@@ -43,9 +43,10 @@ pipeline {
             steps {
                 echo "Keeping only latest 3 images locally..."
                 sh '''
+                # Get only version tags (v1, v2...), exclude latest and <none>
                 TAGS=$(docker images $IMAGE_NAME \
                   --format "{{.Tag}} {{.CreatedAt}}" \
-                  | grep -v latest \
+                  | grep -E '^v[0-9]+' \
                   | sort -r -k2 \
                   | awk '{print $1}')
 
@@ -53,11 +54,12 @@ pipeline {
                 for TAG in $TAGS; do
                   COUNT=$((COUNT+1))
                   if [ $COUNT -gt 3 ]; then
-                    echo "Removing local image: $TAG"
+                    echo "Removing old image: $IMAGE_NAME:$TAG"
                     docker rmi -f $IMAGE_NAME:$TAG || true
                   fi
                 done
 
+                echo "Removing dangling images..."
                 docker image prune -f
                 '''
             }
@@ -70,7 +72,7 @@ pipeline {
                 TAGS=$(curl -s -u "$DOCKER_USER:$DOCKER_HUB_TOKEN" \
                   "https://hub.docker.com/v2/repositories/$DOCKER_USER/python-app/tags/?page_size=100" \
                   | jq -r '.results
-                    | map(select(.name != "latest"))
+                    | map(select(.name | test("^v[0-9]+$")))
                     | sort_by(.last_updated)
                     | reverse
                     | .[].name')
@@ -96,6 +98,7 @@ pipeline {
                 # Remove container using port 5000
                 CONTAINER_ID=$(docker ps -q --filter "publish=5000")
                 if [ -n "$CONTAINER_ID" ]; then
+                  echo "Removing container on port 5000: $CONTAINER_ID"
                   docker rm -f $CONTAINER_ID || true
                 fi
 
