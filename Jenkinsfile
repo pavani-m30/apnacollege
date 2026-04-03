@@ -1,24 +1,18 @@
 pipeline {
     agent any
     environment {
-        // Bind your Docker Hub secret text credential
         DOCKER_HUB_TOKEN = credentials('dockerhub-secret')
     }
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/pavani-m30/apnacollege.git'
+                // Pull code from GitHub
+                git branch: 'main', url: 'https://github.com/pavani-m30/apnacollege.git'
             }
         }
         stage('Build') {
             steps {
                 sh 'docker build -t pavanimm/python-app:latest .'
-            }
-        }
-        stage('Test') {
-            steps {
-                // Run tests if you have them, otherwise skip
-                sh 'pytest tests/ || echo "No tests found, skipping..."'
             }
         }
         stage('Push') {
@@ -31,9 +25,11 @@ pipeline {
         }
         stage('Deploy') {
             steps {
-                // Example: deploy to Kubernetes cluster
-                // Replace with your actual deployment command
-                sh 'kubectl set image deployment/python-app python-app=pavanimm/python-app:latest || echo "Deployment step skipped"'
+                // Clean up old container if exists
+                sh 'docker rm -f python-app || true'
+
+                // Run new container on port 5000
+                sh 'docker run -d --name python-app -p 5000:5000 pavanimm/python-app:latest'
             }
         }
     }
