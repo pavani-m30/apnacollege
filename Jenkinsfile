@@ -11,17 +11,16 @@ pipeline {
         }
         stage('Build Image') {
             steps {
-                sh 'docker build -t pavani30/python-app:latest .'
+                sh 'docker build -t pavanimm/python-app:latest .'
             }
         }
         stage('Push Image') {
             steps {
                 sh '''
-                echo $DOCKER_HUB_TOKEN | docker login -u pavani30 --password-stdin
-                docker push pavani30/python-app:latest
+                echo $DOCKER_HUB_TOKEN | docker login -u pavanimm --password-stdin
+                docker push pavanimm/python-app:latest
                 '''
             }
         }
     }
 }
-
