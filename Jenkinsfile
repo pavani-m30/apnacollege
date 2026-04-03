@@ -12,38 +12,35 @@ pipeline {
             }
         }
 
-        stage('Build Image') {
+        stage('Build & Push Images') {
             steps {
-                echo "Building Docker image with version tags..."
+                echo "Building and pushing 4 images with version tags..."
                 sh '''
-                VERSION="v$(date +%Y%m%d%H%M%S)"
-                docker build -t $IMAGE_NAME:$VERSION .
-                docker tag $IMAGE_NAME:$VERSION $IMAGE_NAME:latest
-                echo $VERSION > version.txt
-                '''
-            }
-        }
-
-        stage('Push Image') {
-            steps {
-                echo "Pushing images to Docker Hub..."
-                sh '''
-                VERSION=$(cat version.txt)
                 echo $DOCKER_HUB_TOKEN | docker login -u pavanimm --password-stdin
-                docker push $IMAGE_NAME:$VERSION
-                docker push $IMAGE_NAME:latest
+
+                for i in 11 12 13 14; do
+                  VERSION="v$i"
+                  echo "Building image with tag: $VERSION"
+                  docker build -t $IMAGE_NAME:$VERSION .
+
+                  echo "Tagging image also as latest"
+                  docker tag $IMAGE_NAME:$VERSION $IMAGE_NAME:latest
+
+                  echo "Pushing image $VERSION and latest"
+                  docker push $IMAGE_NAME:$VERSION
+                  docker push $IMAGE_NAME:latest
+                done
                 '''
             }
         }
 
         stage('Cleanup Old Images') {
             steps {
-                echo "Keeping only the latest 3 images, removing older ones..."
+                echo "Keeping only the latest 3 images locally, removing older ones..."
                 sh '''
-                echo $DOCKER_HUB_TOKEN | docker login -u pavanimm --password-stdin
-                # Get all tags sorted by creation date (newest first)
+                # List all tags for this repo sorted by creation date (newest first)
                 TAGS=$(docker images --format "{{.Repository}}:{{.Tag}} {{.CreatedAt}}" | grep $IMAGE_NAME | sort -r -k2 | awk '{print $1}')
-                
+
                 COUNT=0
                 for TAG in $TAGS; do
                   COUNT=$((COUNT+1))
