@@ -1,7 +1,6 @@
 pipeline {
     agent any
     environment {
-        // Docker Hub credentials stored in Jenkins
         DOCKER_HUB_TOKEN = credentials('dockerhub-secret')
     }
     stages {
@@ -14,8 +13,8 @@ pipeline {
 
         stage('Build Image') {
             steps {
-                echo "Building Docker image..."
-                sh 'docker build -t pavanimm/python-app:latest .'
+                echo "Building Docker image with python:alpine..."
+                sh 'docker build -t pavanimm/python-app:alpine .'
             }
         }
 
@@ -24,7 +23,7 @@ pipeline {
                 echo "Logging in and pushing image to Docker Hub..."
                 sh '''
                 echo $DOCKER_HUB_TOKEN | docker login -u pavanimm --password-stdin
-                docker push pavanimm/python-app:latest
+                docker push pavanimm/python-app:alpine
                 '''
             }
         }
@@ -45,7 +44,7 @@ pipeline {
                 '''
 
                 echo "Running new container..."
-                sh 'docker run -d --name python-app -p 5000:5000 pavanimm/python-app:latest'
+                sh 'docker run -d --name python-app -p 5000:5000 pavanimm/python-app:alpine'
             }
         }
     }
