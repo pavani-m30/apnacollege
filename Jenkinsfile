@@ -1,43 +1,27 @@
 pipeline {
     agent any
-
+    environment {
+        DOCKER_HUB_TOKEN = credentials('dockerhub-secret')
+    }
     stages {
-        stage('Checkout') {
+        stage('Clone Repo') {
             steps {
-                git branch: 'main', url: 'https://github.com/pavani-m30/pythondotorg.git'
+                git 'https://github.com/pavani-m30/apnacollege.git'
             }
         }
-
-        stage('Run Python Script') {
+        stage('Build Image') {
             steps {
-                sh 'python3 main.py'
+                sh 'docker build -t pavani30/python-app:latest .'
             }
         }
-
-        stage('SonarQube Analysis') {
-            environment {
-                SONARQUBE = credentials('sonar-token-id')
-            }
+        stage('Push Image') {
             steps {
-                withSonarQubeEnv('MySonar') {
-                    // Use Jenkins tool configuration for scanner
-                    sh """
-                        ${tool 'SonarScanner'}/bin/sonar-scanner \
-                          -Dsonar.projectKey=pipeline \
-                          -Dsonar.sources=. \
-                          -Dsonar.host.url=http://localhost:9000 \
-                          -Dsonar.login=$SONARQUBE
-                    """
-                }
-            }
-        }
-
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 1, unit: 'HOURS') {
-                    waitForQualityGate abortPipeline: true
-                }
+                sh '''
+                echo $DOCKER_HUB_TOKEN | docker login -u pavani30 --password-stdin
+                docker push pavani30/python-app:latest
+                '''
             }
         }
     }
 }
+
